@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hacker Simulator</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root { --term-green: #0f0; --term-red: #ff3333; --term-yellow: #ffcc00; --bg-color: #050505; }
+        body { background-color: var(--bg-color); color: var(--term-green); font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .crt::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 999; background-size: 100% 2px, 3px 100%; pointer-events: none; }
+        .glow { text-shadow: 0 0 5px var(--term-green); }
+        #status-bar { padding: 15px; border-bottom: 1px solid var(--term-green); display: flex; justify-content: space-between; font-weight: bold; background: #000; z-index: 10; }
+        #console-output { flex-grow: 1; padding: 15px; overflow-y: auto; font-size: 14px; line-height: 1.4; }
+        #console-output::-webkit-scrollbar { width: 0px; }
+        #controls { padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #000; border-top: 1px solid var(--term-green); z-index: 10; }
+        button { background: black; border: 1px solid var(--term-green); color: var(--term-green); padding: 15px; font-family: inherit; font-weight: bold; font-size: 16px; text-transform: uppercase; cursor: pointer; transition: all 0.1s; }
+        button:active { background: var(--term-green); color: black; transform: scale(0.98); }
+        button.danger { border-color: var(--term-red); color: var(--term-red); }
+        button.danger:active { background: var(--term-red); color: black; }
+        .cursor { display: inline-block; width: 8px; height: 14px; background: var(--term-green); animation: blink 1s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        .log-line { margin-bottom: 5px; } .log-success { color: var(--term-green); } .log-warn { color: var(--term-yellow); } .log-error { color: var(--term-red); }
+    </style>
+</head>
+<body class="crt">
+
+    <div id="status-bar" class="glow">
+        <span>🤖 BOTS: <span id="bots">...</span></span>
+        <span>💸 CASH: $<span id="money">...</span></span>
+    </div>
+
+    <div id="console-output">
+        <div class="log-line">> SYSTEM INTIATED...</div>
+        <div class="log-line">> CONNECTING TO SERVER...</div>
+    </div>
+
+    <div id="controls">
+        <button onclick="scanTarget()">📡 Scan</button>
+        <button onclick="buyBots()">🛒 Buy Bots</button>
+        <button class="danger" onclick="startRaid()" style="grid-column: span 2;">💀 START RAID</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // 1. ОТРИМУЄМО ID (для тестів фейковий, в телеграмі справжній)
+        const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 123456;
+        const API_BASE = "api"; // Важливо для .htaccess
+
+        const consoleDiv = document.getElementById('console-output');
+        let isTyping = false;
+
+        // Функція друку тексту
+        function log(text, type = 'success') {
+            const oldCursor = document.querySelector('.cursor');
+            if(oldCursor) oldCursor.remove();
+            const line = document.createElement('div');
+            line.className = `log-line log-${type} glow`;
+            consoleDiv.appendChild(line);
+            let i = 0; const speed = 20;
+            function typeChar() {
+                if (i < text.length) {
+                    line.textContent += text.charAt(i); i++;
+                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                    setTimeout(typeChar, speed);
+                } else {
+                    line.innerHTML += '<span class="cursor"></span>';
+                    tg.HapticFeedback.impactOccurred('light'); 
+                }
+            }
+            typeChar();
+        }
+
+        function updateUI(money, bots) {
+            document.getElementById('bots').innerText = bots;
+            document.getElementById('money').innerText = money;
+        }
+
+        // === API ЗАПИТИ ===
+
+        async function loadProfile() {
+            try {
+                let res = await fetch(`${API_BASE}/user/${userId}`);
+                if (!res.ok) throw new Error("Server Error");
+                let data = await res.json();
+                updateUI(data.money, data.bots);
+                log("> PROFILE SYNCED.", "success");
+            } catch (e) {
+                log("> ERROR: CONNECTION FAILED", "error");
+            }
+        }
+
+        function scanTarget() {
+            if(isTyping) return;
+            tg.HapticFeedback.impactOccurred('medium');
+            log("> SCANNING NETWORK...", "warn");
+            setTimeout(() => {
+                log("> TARGET FOUND: @crypto_scam [DEF: LOW]", "success");
+            }, 1000);
+        }
+
+        async function buyBots() {
+            tg.HapticFeedback.impactOccurred('medium');
+            log("> BUYING BOTS (-$50)...", "warn");
+            
+            try {
+                let res = await fetch(`${API_BASE}/buy`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user_id: userId})
+                });
+                let data = await res.json();
+                
+                if (data.success) {
+                    log("> PURCHASE SUCCESSFUL.", "success");
+                    updateUI(data.money, data.bots);
+                } else {
+                    log(`> ERROR: ${data.error}`, "error");
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            } catch (e) { log("> SERVER ERROR", "error"); }
+        }
+
+        async function startRaid() {
+            tg.HapticFeedback.notificationOccurred('warning');
+            log("> INITIATING ATTACK...", "error");
+
+            try {
+                let res = await fetch(`${API_BASE}/raid`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user_id: userId})
+                });
+                let data = await res.json();
+                
+                if (data.success) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    log(data.message, "success");
+                } else {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    document.body.classList.add('shake');
+                    setTimeout(() => document.body.classList.remove('shake'), 500);
+                    log(data.message, "error");
+                }
+                updateUI(data.money, data.bots);
+            } catch (e) { log("> CONNECTION LOST", "error"); }
+        }
+
+        // Старт: завантажуємо профіль
+        loadProfile();
+
+    </script>
+</body>
+</html>
