@@ -49,7 +49,9 @@
         
         // 1. ОТРИМУЄМО ID (для тестів фейковий, в телеграмі справжній)
         const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 123456;
-        const API_BASE = "api"; // Важливо для .htaccess
+        
+        // ВАЖЛИВО: Оновлено на твоє посилання з тунелю
+        const API_BASE = "https://7af576dc288ae3.lhr.life/api"; 
 
         const consoleDiv = document.getElementById('console-output');
         let isTyping = false;
